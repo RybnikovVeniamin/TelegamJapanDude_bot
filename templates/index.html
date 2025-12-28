@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Voice Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .recording-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .record-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            font-weight: 600;
+        }
+
+        .record-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .record-btn:active {
+            transform: translateY(0);
+        }
+
+        .record-btn.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #666;
+            min-height: 30px;
+        }
+
+        .results {
+            display: none;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 30px;
+            font-size: 2.5em;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .score-label {
+            font-size: 0.4em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .transcription {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .transcription h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .transcription-text {
+            color: #555;
+            line-height: 1.6;
+            font-size: 1.1em;
+        }
+
+        .issues {
+            margin-bottom: 30px;
+        }
+
+        .issues h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .issue-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .tips {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .tips h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .tip-item {
+            margin-bottom: 10px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .tip-item:before {
+            content: "💡 ";
+            margin-right: 5px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 English Voice Analyzer</h1>
+        <p class="subtitle">Record your speech and get instant feedback on your English pronunciation</p>
+
+        <div class="recording-section">
+            <button id="recordBtn" class="record-btn">Start Recording</button>
+            <div class="status" id="status"></div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px; color: #666;">Analyzing your speech...</p>
+            </div>
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="score-circle">
+                <div id="scoreValue">0</div>
+                <div class="score-label">Score</div>
+            </div>
+
+            <div class="transcription">
+                <h3>📝 What You Said:</h3>
+                <div class="transcription-text" id="transcription"></div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="wordCount">0</div>
+                    <div class="stat-label">Words</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="sentenceCount">0</div>
+                    <div class="stat-label">Sentences</div>
+                </div>
+            </div>
+
+            <div class="issues" id="issuesSection">
+                <h3>⚠️ Issues Found:</h3>
+                <div id="issuesList"></div>
+            </div>
+
+            <div class="tips">
+                <h3>💡 Tips for Improvement:</h3>
+                <div id="tipsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const recordBtn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const results = document.getElementById('results');
+
+        recordBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Пробуем использовать webm формат (поддерживается большинством браузеров)
+                    const options = { mimeType: 'audio/webm' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        delete options.mimeType; // Используем формат по умолчанию
+                    }
+                    mediaRecorder = new MediaRecorder(stream, options);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        // Определяем правильный MIME тип для blob
+                        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                        const audioBlob = new Blob(audioChunks, { type: mimeType });
+                        await analyzeAudio(audioBlob);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordBtn.textContent = 'Stop Recording';
+                    recordBtn.classList.add('recording');
+                    status.textContent = '🎤 Recording... Click again to stop';
+                    error.classList.remove('show');
+                    results.classList.remove('show');
+                } catch (err) {
+                    showError('Please allow microphone access to use this feature.');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = 'Start Recording';
+                recordBtn.classList.remove('recording');
+                status.textContent = 'Processing your recording...';
+                loading.classList.add('show');
+            }
+        });
+
+        async function analyzeAudio(audioBlob) {
+            try {
+                const formData = new FormData();
+                // Используем правильное расширение файла в зависимости от формата
+                const extension = audioBlob.type.includes('webm') ? 'webm' : 
+                                 audioBlob.type.includes('ogg') ? 'ogg' : 'wav';
+                formData.append('audio', audioBlob, `recording.${extension}`);
+
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Something went wrong. Please try again.');
+                }
+            } catch (err) {
+                showError('Failed to analyze audio. Please check your internet connection.');
+            } finally {
+                loading.classList.remove('show');
+                status.textContent = '';
+            }
+        }
+
+        function displayResults(data) {
+            // Score
+            document.getElementById('scoreValue').textContent = data.analysis.score;
+            
+            // Transcription
+            document.getElementById('transcription').textContent = data.transcription;
+            
+            // Stats
+            document.getElementById('wordCount').textContent = data.analysis.word_count;
+            document.getElementById('sentenceCount').textContent = data.analysis.sentence_count;
+            
+            // Issues
+            const issuesList = document.getElementById('issuesList');
+            const issuesSection = document.getElementById('issuesSection');
+            if (data.analysis.issues && data.analysis.issues.length > 0) {
+                issuesList.innerHTML = data.analysis.issues.map(issue => 
+                    `<div class="issue-item">${issue.message}</div>`
+                ).join('');
+                issuesSection.style.display = 'block';
+            } else {
+                issuesList.innerHTML = '<div class="issue-item" style="background: #d4edda; border-color: #28a745;">✅ No issues found! Great job!</div>';
+                issuesSection.style.display = 'block';
+            }
+            
+            // Tips
+            const tipsList = document.getElementById('tipsList');
+            tipsList.innerHTML = data.analysis.pronunciation_tips.map(tip => 
+                `<div class="tip-item">${tip.tip}</div>`
+            ).join('');
+            
+            results.classList.add('show');
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+            loading.classList.remove('show');
+        }
+    </script>
+</body>
+</html>
+

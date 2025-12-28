@@ -1,0 +1,21 @@
+# Environment variables (contains your bot token - keep this private!)
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Data files (optional - you might want to track these)
+mention_counts.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
