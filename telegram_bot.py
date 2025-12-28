@@ -66,10 +66,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Check if the keyword root is mentioned (matches all grammatical forms)
     # This will match: Япония, Японию, Японии, Японией, Япониею, etc.
-    # Find all words that start with the root "Япони"
-    # Pattern matches: Япони + any Russian letters (for different cases/endings)
-    keyword_pattern = re.compile(r'\b' + re.escape(KEYWORD_ROOT) + r'[а-яёА-ЯЁ]*', re.IGNORECASE)
-    matches = keyword_pattern.findall(message_text)
+    # Split text into words and check each word (works better with Russian/Cyrillic)
+    # Extract all words (Russian and other characters)
+    words = re.findall(r'[а-яёА-ЯЁa-zA-Z]+', message_text)
+    matches = [word for word in words if word.lower().startswith(KEYWORD_ROOT.lower())]
     
     if matches:
         # Count how many times the word appears in this message
@@ -85,13 +85,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_count = mention_counts[chat_id]
         
         # Send a message to the chat (in Russian)
-        if total_count == 1:
-            response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
-        elif total_count in [2, 3, 4]:
-            response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
-        else:
-            response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
-        await update.message.reply_text(response)
+        try:
+            if total_count == 1:
+                response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
+            elif total_count in [2, 3, 4]:
+                response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
+            else:
+                response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
+            await update.message.reply_text(response)
+        except Exception as e:
+            print(f"Error sending message: {e}")
+            # Don't crash if we can't send a message
 
 def main():
     """Start the bot"""
@@ -112,8 +116,12 @@ def main():
     print(f"Bot is running! Monitoring for keyword: {KEYWORD}")
     print("Add this bot to your channel and give it permission to read and send messages.")
     
-    # Start the bot
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Start the bot with error handling
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    except Exception as e:
+        print(f"Error running bot: {e}")
+        raise
 
 if __name__ == '__main__':
     main()
