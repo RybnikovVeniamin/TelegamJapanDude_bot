@@ -1,84 +1,46 @@
-# English Voice Analyzer 🎤
+# Telegram Keyword Counter Bot 🤖
 
-A simple web application that helps you improve your English speaking skills by analyzing your voice recordings.
+A Telegram bot that monitors a channel and counts how many times a specific word (like "Japan") is mentioned. Every time someone mentions the keyword, the bot posts a message showing the total count.
 
 ## What It Does
 
-This tool records your English speech and provides:
-- **Speech Recognition**: Converts your voice to text
-- **Grammar Analysis**: Finds repeated words, long sentences, and filler words
-- **Score**: Gives you a score out of 100
-- **Tips**: Provides helpful suggestions to improve your pronunciation
+- Monitors messages in your Telegram channel
+- Counts mentions of a specific keyword (default: "Japan")
+- Posts a count message each time the keyword is mentioned
+- Remembers counts even after restarting
 
-## How to Use
+## Quick Start
 
-### Step 1: Install Required Software
+1. **Get a bot token** from [@BotFather](https://t.me/BotFather) on Telegram
+2. **Install dependencies**: `pip3 install -r requirements.txt`
+3. **Set your token**: Create a `.env` file with `TELEGRAM_BOT_TOKEN=your-token-here`
+4. **Run the bot**: `python3 telegram_bot.py`
+5. **Add bot to your channel** and give it permission to read and send messages
 
-First, you need to install Python (if you don't have it already). Then install the required packages:
+## Change the Keyword
 
-```bash
-pip install -r requirements.txt
+Edit `telegram_bot.py` and change this line:
+```python
+KEYWORD = "Japan"
 ```
+to whatever word you want to monitor.
 
-**Note**: For audio format conversion, you may also need to install FFmpeg:
-- **Mac**: `brew install ffmpeg`
-- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-- **Linux**: `sudo apt install ffmpeg` (Ubuntu/Debian) or `sudo yum install ffmpeg` (CentOS/RHEL)
+## Deploy to Cloud
 
-If you don't install FFmpeg, the app will still work, but some audio formats might not be supported.
+See `CLOUD_DEPLOYMENT.md` for instructions on running the bot 24/7 in the cloud (free options available).
 
-### Step 2: Run the Application
+## Files
 
-Open your terminal, go to the project folder, and run:
+- `telegram_bot.py` - The main bot code
+- `requirements.txt` - Python packages needed
+- `TELEGRAM_BOT_SETUP.md` - Detailed setup instructions
+- `CLOUD_DEPLOYMENT.md` - Guide for cloud deployment
 
-```bash
-python app.py
-```
+## How It Works
 
-### Step 3: Open in Browser
+1. Bot watches all messages in the channel
+2. When it sees the keyword, it counts it
+3. Saves the count to a file (so it remembers)
+4. Posts a message like "It's 5 mentions of Japan in this chat"
 
-Once the app is running, open your web browser and go to:
-
-```
-http://localhost:5001
-```
-
-**Note**: We use port 5001 instead of 5000 because macOS uses port 5000 for AirPlay by default.
-
-### Step 4: Record and Analyze
-
-1. Click the "Start Recording" button
-2. Speak in English
-3. Click "Stop Recording" when you're done
-4. Wait for the analysis (it takes a few seconds)
-5. See your results, score, and tips!
-
-## Features
-
-- ✅ Real-time voice recording
-- ✅ Automatic speech-to-text conversion
-- ✅ Grammar and pronunciation analysis
-- ✅ Visual score display
-- ✅ Helpful improvement tips
-- ✅ Beautiful, easy-to-use interface
-
-## Notes
-
-- You need an internet connection (uses Google's speech recognition service)
-- Make sure to allow microphone access when your browser asks
-- Speak clearly for best results
-- The tool works best with English (US) pronunciation
-
-## Troubleshooting
-
-**Problem**: "Could not understand audio"
-- **Solution**: Speak louder and more clearly, make sure you're speaking in English
-
-**Problem**: Microphone not working
-- **Solution**: Check your browser settings and allow microphone access
-
-**Problem**: Analysis takes too long
-- **Solution**: Check your internet connection
-
-Enjoy improving your English! 🚀
-
+Enjoy your keyword counter bot! 🚀
