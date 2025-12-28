@@ -244,7 +244,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Extract all words (Russian and other characters)
         words = re.findall(r'[а-яёА-ЯЁa-zA-Z]+', message_text)
         
-        # Check all tracked keywords
+        # Check all tracked keywords - all contribute to ONE shared counter
         global tracked_keywords
         all_matches = []
         matched_keywords = []
@@ -252,14 +252,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for keyword_info in tracked_keywords:
             keyword_root = keyword_info['root']
             keyword_word = keyword_info['word']
-            # Find matches for this keyword
-            matches = [word for word in words if word.lower().startswith(keyword_root.lower())]
+            # Find matches for this keyword (check both exact match and root match)
+            # This allows matching "Japan" and "Япония" even though they're different words
+            matches = []
+            for word in words:
+                word_lower = word.lower()
+                keyword_lower = keyword_word.lower()
+                root_lower = keyword_root.lower()
+                # Check if word matches the keyword exactly or starts with the root
+                if word_lower == keyword_lower or word_lower.startswith(root_lower):
+                    matches.append(word)
+            
             if matches:
                 all_matches.extend(matches)
-                matched_keywords.append(keyword_word)
+                # Only add keyword to matched_keywords list if not already there
+                if keyword_word not in matched_keywords:
+                    matched_keywords.append(keyword_word)
         
         if all_matches:
-            # Count how many times the words appear in this message
+            # Count how many times ANY tracked word appears in this message
+            # All tracked words contribute to the SAME counter
             count_in_message = len(all_matches)
             
             # If this is the first mention for this chat, start from 55
@@ -277,7 +289,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Send a message to the chat (in Russian)
             try:
-                # Create response based on matched keywords
+                # Create response - all tracked words share ONE counter
+                # Show which words were mentioned, but emphasize it's one shared count
                 if len(matched_keywords) == 1:
                     keyword = matched_keywords[0]
                     messages = [
@@ -288,9 +301,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     keywords_str = ", ".join(matched_keywords)
                     messages = [
-                        f"Красавчики опять заговорили про {keywords_str.lower()}, это уже {total_count} раз",
+                        f"Красавчики опять заговорили про {keywords_str.lower()}, это уже {total_count} раз (всего)",
                         f"Так, ещё одно упомянутие ({keywords_str}) - всего {total_count}",
-                        f"В этом чате упомянули уже {total_count} раз"
+                        f"В этом чате упомянули уже {total_count} раз (все отслеживаемые слова)"
                     ]
                 
                 response = random.choice(messages)
