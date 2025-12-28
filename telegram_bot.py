@@ -47,55 +47,73 @@ mention_counts = defaultdict(int, load_counts())
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming messages"""
-    # Only process messages from channels/groups
-    if not update.message or not update.message.text:
-        return
-    
-    # Get the chat ID (unique identifier for the channel/group)
-    chat_id = str(update.message.chat_id)
-    
-    # Print chat ID to help user find their channel ID (remove this after setting ALLOWED_CHANNEL_ID)
-    print(f"Message from chat ID: {chat_id}")
-    
-    # If ALLOWED_CHANNEL_ID is set, only respond to that channel
-    if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
-        return  # Ignore messages from other channels
-    
-    # Get the message text (keep original case for Russian)
-    message_text = update.message.text
-    
-    # Check if the keyword root is mentioned (matches all grammatical forms)
-    # This will match: Япония, Японию, Японии, Японией, Япониею, etc.
-    # Split text into words and check each word (works better with Russian/Cyrillic)
-    # Extract all words (Russian and other characters)
-    words = re.findall(r'[а-яёА-ЯЁa-zA-Z]+', message_text)
-    matches = [word for word in words if word.lower().startswith(KEYWORD_ROOT.lower())]
-    
-    if matches:
-        # Count how many times the word appears in this message
-        count_in_message = len(matches)
+    try:
+        # Handle both regular messages and channel posts
+        message = update.message
+        if not message:
+            # Try channel post instead
+            message = update.channel_post
         
-        # Update the total count for this chat
-        mention_counts[chat_id] += count_in_message
+        if not message or not message.text:
+            return
         
-        # Save to file
-        save_counts(mention_counts)
+        # Get the chat ID (unique identifier for the channel/group)
+        chat_id = str(message.chat_id)
         
-        # Get the current total count
-        total_count = mention_counts[chat_id]
+        # Print chat ID to help user find their channel ID (remove this after setting ALLOWED_CHANNEL_ID)
+        print(f"Message from chat ID: {chat_id}, text: {message.text[:50]}...")
         
-        # Send a message to the chat (in Russian)
-        try:
-            if total_count == 1:
-                response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
-            elif total_count in [2, 3, 4]:
-                response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
-            else:
-                response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
-            await update.message.reply_text(response)
-        except Exception as e:
-            print(f"Error sending message: {e}")
-            # Don't crash if we can't send a message
+        # If ALLOWED_CHANNEL_ID is set, only respond to that channel
+        if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
+            print(f"Ignoring message from chat {chat_id} (not allowed)")
+            return  # Ignore messages from other channels
+        
+        # Get the message text (keep original case for Russian)
+        message_text = message.text
+        
+        # Check if the keyword root is mentioned (matches all grammatical forms)
+        # This will match: Япония, Японию, Японии, Японией, Япониею, etc.
+        # Split text into words and check each word (works better with Russian/Cyrillic)
+        # Extract all words (Russian and other characters)
+        words = re.findall(r'[а-яёА-ЯЁa-zA-Z]+', message_text)
+        matches = [word for word in words if word.lower().startswith(KEYWORD_ROOT.lower())]
+        
+        if matches:
+            # Count how many times the word appears in this message
+            count_in_message = len(matches)
+            
+            # Update the total count for this chat
+            mention_counts[chat_id] += count_in_message
+            
+            # Save to file
+            save_counts(mention_counts)
+            
+            # Get the current total count
+            total_count = mention_counts[chat_id]
+            
+            # Send a message to the chat (in Russian)
+            try:
+                if total_count == 1:
+                    response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
+                elif total_count in [2, 3, 4]:
+                    response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
+                else:
+                    response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
+                # Try to reply, if that fails, send a new message
+                try:
+                    await message.reply_text(response)
+                except:
+                    # If reply fails (e.g., in channels), send as a new message
+                    await context.bot.send_message(chat_id=chat_id, text=response)
+            except Exception as e:
+                print(f"Error sending message: {e}")
+                import traceback
+                traceback.print_exc()
+                # Don't crash if we can't send a message
+    except Exception as e:
+        print(f"Error in handle_message: {e}")
+        import traceback
+        traceback.print_exc()
 
 def main():
     """Start the bot"""
@@ -110,8 +128,11 @@ def main():
     # Create the application
     application = Application.builder().token(bot_token).build()
     
-    # Add message handler for all text messages
+    # Add message handler for all text messages (both regular messages and channel posts)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Also handle channel posts separately (in case they're not caught by the above)
+    application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS & filters.TEXT, handle_message))
     
     print(f"Bot is running! Monitoring for keyword: {KEYWORD}")
     print("Add this bot to your channel and give it permission to read and send messages.")
