@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from collections import defaultdict
@@ -12,7 +13,9 @@ except ImportError:
     pass  # dotenv is optional
 
 # The word to monitor (you can change this)
-KEYWORD = "Japan"
+# For Russian words with different grammatical forms, use the root
+KEYWORD = "Япония"
+KEYWORD_ROOT = "Япони"  # Root that matches all forms: Япония, Японию, Японии, Японией, etc.
 
 # ALLOWED_CHANNEL_ID: Set this to your channel ID to restrict the bot to only one channel
 # Leave as None to allow the bot to work in any channel
@@ -58,14 +61,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
         return  # Ignore messages from other channels
     
-    # Get the message text
-    message_text = update.message.text.lower()
+    # Get the message text (keep original case for Russian)
+    message_text = update.message.text
     
-    # Check if the keyword is mentioned (case-insensitive)
-    keyword_lower = KEYWORD.lower()
-    if keyword_lower in message_text:
-        # Count how many times the keyword appears in this message
-        count_in_message = message_text.count(keyword_lower)
+    # Check if the keyword root is mentioned (matches all grammatical forms)
+    # This will match: Япония, Японию, Японии, Японией, Япониею, etc.
+    # Find all words that start with the root "Япони"
+    # Pattern matches: Япони + any Russian letters (for different cases/endings)
+    keyword_pattern = re.compile(r'\b' + re.escape(KEYWORD_ROOT) + r'[а-яёА-ЯЁ]*', re.IGNORECASE)
+    matches = keyword_pattern.findall(message_text)
+    
+    if matches:
+        # Count how many times the word appears in this message
+        count_in_message = len(matches)
         
         # Update the total count for this chat
         mention_counts[chat_id] += count_in_message
@@ -76,8 +84,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get the current total count
         total_count = mention_counts[chat_id]
         
-        # Send a message to the chat
-        response = f"It's {total_count} mention{'s' if total_count != 1 else ''} of {KEYWORD} in this chat"
+        # Send a message to the chat (in Russian)
+        if total_count == 1:
+            response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
+        elif total_count in [2, 3, 4]:
+            response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
+        else:
+            response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
         await update.message.reply_text(response)
 
 def main():
