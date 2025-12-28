@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import random
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from collections import defaultdict
@@ -82,6 +83,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Count how many times the word appears in this message
             count_in_message = len(matches)
             
+            # If this is the first mention for this chat, start from 55
+            if chat_id not in mention_counts or mention_counts[chat_id] == 0:
+                mention_counts[chat_id] = 55 - count_in_message
+            
             # Update the total count for this chat
             mention_counts[chat_id] += count_in_message
             
@@ -93,12 +98,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Send a message to the chat (in Russian)
             try:
-                if total_count == 1:
-                    response = f"Это {total_count} упоминание {KEYWORD} в этом чате"
-                elif total_count in [2, 3, 4]:
-                    response = f"Это {total_count} упоминания {KEYWORD} в этом чате"
-                else:
-                    response = f"Это {total_count} упоминаний {KEYWORD} в этом чате"
+                # Randomly select one of the message templates
+                messages = [
+                    f"Красавчики опять заговорили про японию, это уже {total_count} раз",
+                    f"Так, ещё одно упомянутие Японии ({total_count}) и мы покупаем билеты",
+                    f"Японию в этом чате упомянули уже {total_count}"
+                ]
+                response = random.choice(messages)
                 # Try to reply, if that fails, send a new message
                 try:
                     await message.reply_text(response)
