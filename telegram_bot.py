@@ -14,6 +14,11 @@ except ImportError:
 # The word to monitor (you can change this)
 KEYWORD = "Japan"
 
+# ALLOWED_CHANNEL_ID: Set this to your channel ID to restrict the bot to only one channel
+# Leave as None to allow the bot to work in any channel
+# To find your channel ID: add the bot, send a message, and check the console output
+ALLOWED_CHANNEL_ID = None  # Change this to your channel ID (as a string, e.g., "-1001234567890")
+
 # File to store mention counts
 COUNTS_FILE = "mention_counts.json"
 
@@ -45,6 +50,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Get the chat ID (unique identifier for the channel/group)
     chat_id = str(update.message.chat_id)
+    
+    # Print chat ID to help user find their channel ID (remove this after setting ALLOWED_CHANNEL_ID)
+    print(f"Message from chat ID: {chat_id}")
+    
+    # If ALLOWED_CHANNEL_ID is set, only respond to that channel
+    if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
+        return  # Ignore messages from other channels
     
     # Get the message text
     message_text = update.message.text.lower()
