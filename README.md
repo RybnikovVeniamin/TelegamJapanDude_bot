@@ -27,13 +27,15 @@ to whatever word you want to monitor.
 
 ## Deploy to Cloud
 
-See `CLOUD_DEPLOYMENT.md` for instructions on running the bot 24/7 in the cloud (free options available).
+See `FREE_HOSTING_GUIDE.md` for **free and cheap hosting options** (Railway, Fly.io, etc.)
+or `CLOUD_DEPLOYMENT.md` for detailed deployment instructions.
 
 ## Files
 
 - `telegram_bot.py` - The main bot code
 - `requirements.txt` - Python packages needed
 - `TELEGRAM_BOT_SETUP.md` - Detailed setup instructions
+- `FREE_HOSTING_GUIDE.md` - Free & cheap hosting options (recommended!)
 - `CLOUD_DEPLOYMENT.md` - Guide for cloud deployment
 
 ## How It Works

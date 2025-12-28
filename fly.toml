@@ -1,0 +1,19 @@
+# Fly.io configuration file for Telegram bot
+# This runs your bot as a background worker (no HTTP needed)
+
+app = "telegram-keyword-bot"
+primary_region = "iad"  # Washington DC - change if you prefer another region
+
+[build]
+
+# Environment variables are set via: fly secrets set TELEGRAM_BOT_TOKEN=your-token
+
+# Run as a process (worker) - Telegram bots use polling, no HTTP needed
+[processes]
+  bot = "python3 telegram_bot.py"
+
+# Small VM is enough for a simple bot (free tier allows this)
+[[vm]]
+  memory_mb = 256
+  cpu_kind = "shared"
+  cpus = 1
