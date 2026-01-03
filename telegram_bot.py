@@ -23,8 +23,15 @@ DEFAULT_KEYWORD_ROOT = "Япони"  # Root that matches all forms: Япония
 ALLOWED_CHANNEL_ID = None  # Change this to your channel ID (as a string, e.g., "-1001234567890")
 
 # Files to store data
-COUNTS_FILE = "mention_counts.json"
-KEYWORDS_FILE = "tracked_keywords.json"
+# Use /var/data/ on Render (persistent disk), otherwise use current directory
+DATA_DIR = "/var/data" if os.path.exists("/var/data") else "."
+COUNTS_FILE = os.path.join(DATA_DIR, "mention_counts.json")
+KEYWORDS_FILE = os.path.join(DATA_DIR, "tracked_keywords.json")
+
+if DATA_DIR == "/var/data":
+    print("✅ Using persistent disk at /var/data - data will be saved!")
+else:
+    print("📁 Using local directory for data storage")
 
 # Load existing counts from file
 def load_counts():
@@ -104,6 +111,55 @@ async def what_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=chat_id, text=response)
     except Exception as e:
         print(f"Error in what_command: {e}")
+        import traceback
+        traceback.print_exc()
+
+async def setcount_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /setcount command - manually set the counter value"""
+    try:
+        message = update.message
+        if not message:
+            message = update.channel_post
+        
+        if not message:
+            return
+        
+        chat_id = str(message.chat_id)
+        
+        if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
+            return
+        
+        # Get the number from command arguments
+        if not context.args or len(context.args) == 0:
+            response = "Укажите число. Например: /setcount 58"
+            try:
+                await message.reply_text(response)
+            except:
+                await context.bot.send_message(chat_id=chat_id, text=response)
+            return
+        
+        try:
+            new_count = int(context.args[0])
+        except ValueError:
+            response = "Пожалуйста, укажите число. Например: /setcount 58"
+            try:
+                await message.reply_text(response)
+            except:
+                await context.bot.send_message(chat_id=chat_id, text=response)
+            return
+        
+        global mention_counts
+        mention_counts[chat_id] = new_count
+        save_counts(mention_counts)
+        
+        response = f"✅ Счётчик установлен на {new_count}"
+        try:
+            await message.reply_text(response)
+        except:
+            await context.bot.send_message(chat_id=chat_id, text=response)
+            
+    except Exception as e:
+        print(f"Error in setcount_command: {e}")
         import traceback
         traceback.print_exc()
 
@@ -340,6 +396,7 @@ def main():
     application.add_handler(CommandHandler("what", what_command))
     application.add_handler(CommandHandler("add", add_command))
     application.add_handler(CommandHandler("list", list_command))
+    application.add_handler(CommandHandler("setcount", setcount_command))
     
     # Add message handler for all text messages (both regular messages and channel posts)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -351,7 +408,7 @@ def main():
     keywords_list = ", ".join([kw['word'] for kw in tracked_keywords])
     print(f"Bot is running! Monitoring for keywords: {keywords_list}")
     print("Add this bot to your channel and give it permission to read and send messages.")
-    print("Commands: /what - show tracked words, /add <word> - add word, /list - list all words")
+    print("Commands: /what, /add <word>, /list, /setcount <number>")
     
     # Start the bot with error handling
     try:
