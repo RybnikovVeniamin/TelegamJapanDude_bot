@@ -16,6 +16,13 @@ except ImportError:
 # Default keyword to start with
 DEFAULT_KEYWORD = "Япония"
 DEFAULT_KEYWORD_ROOT = "Япони"  # Root that matches all forms: Япония, Японию, Японии, Японией, etc.
+DEFAULT_KEYWORD_ACCUSATIVE = "Японию"  # Accusative case (винительный падеж) - used after "про"
+
+# Sticker file IDs to send with responses (you can add your own sticker IDs here)
+# To get a sticker ID: forward any sticker to @userinfobot or @idstickerbot on Telegram
+STICKER_IDS = [
+    "CAACAgIAAxkBAAEBaaBnfaHuMGGrz8_8tDvTKZ0rZGZgzwACGgADwDZPE_lqX5qCa011NgQ",  # Default sticker
+]
 
 # ALLOWED_CHANNEL_ID: Set this to your channel ID to restrict the bot to only one channel
 # Leave as None to allow the bot to work in any channel
@@ -59,14 +66,18 @@ def load_keywords():
                 data = json.load(f)
                 # Convert old format (single keyword) to new format (list)
                 if isinstance(data, str):
-                    return [{"word": data, "root": data[:len(data)-1] if len(data) > 1 else data}]
+                    return [{"word": data, "root": data[:len(data)-1] if len(data) > 1 else data, "accusative": data}]
                 elif isinstance(data, list):
+                    # Ensure all keywords have an accusative form
+                    for kw in data:
+                        if "accusative" not in kw:
+                            kw["accusative"] = kw["word"]  # Default to nominative if not specified
                     return data
                 else:
-                    return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT}]
+                    return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT, "accusative": DEFAULT_KEYWORD_ACCUSATIVE}]
         except:
-            return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT}]
-    return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT}]
+            return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT, "accusative": DEFAULT_KEYWORD_ACCUSATIVE}]
+    return [{"word": DEFAULT_KEYWORD, "root": DEFAULT_KEYWORD_ROOT, "accusative": DEFAULT_KEYWORD_ACCUSATIVE}]
 
 # Save keywords to file
 def save_keywords(keywords):
@@ -183,15 +194,16 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Get the word from command arguments
         if not context.args or len(context.args) == 0:
-            response = "Пожалуйста, укажите слово для отслеживания. Например: /add Токио"
+            response = "Пожалуйста, укажите слово для отслеживания.\nФормат: /add Слово [винительный_падеж]\nПример: /add Япония Японию\nИли просто: /add Токио (если форма не меняется)"
             try:
                 await message.reply_text(response)
             except:
                 await context.bot.send_message(chat_id=chat_id, text=response)
             return
         
-        new_word = " ".join(context.args)  # Join in case word has spaces
-        new_word = new_word.strip()
+        # Parse arguments: first is the word, second (optional) is accusative form
+        new_word = context.args[0].strip()
+        accusative_form = context.args[1].strip() if len(context.args) > 1 else new_word
         
         if not new_word:
             response = "Пожалуйста, укажите слово для отслеживания."
@@ -220,11 +232,14 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # For Russian, try to get root by removing last 1-2 characters
             root = new_word[:-1] if len(new_word) > 4 else new_word
         
-        # Add new keyword
-        tracked_keywords.append({"word": new_word, "root": root})
+        # Add new keyword with accusative form
+        tracked_keywords.append({"word": new_word, "root": root, "accusative": accusative_form})
         save_keywords(tracked_keywords)
         
-        response = f"Добавлено слово для отслеживания: {new_word}"
+        if accusative_form != new_word:
+            response = f"Добавлено слово для отслеживания: {new_word} (винительный падеж: {accusative_form})"
+        else:
+            response = f"Добавлено слово для отслеживания: {new_word}"
         try:
             await message.reply_text(response)
         except:
@@ -258,7 +273,7 @@ async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(tracked_keywords) == 0:
             response = "Нет отслеживаемых слов."
         else:
-            words_list = "\n".join([f"• {kw['word']}" for kw in tracked_keywords])
+            words_list = "\n".join([f"• {kw['word']} (винительный: {kw.get('accusative', kw['word'])})" for kw in tracked_keywords])
             response = f"Отслеживаемые слова:\n{words_list}"
         
         try:
@@ -267,6 +282,62 @@ async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=chat_id, text=response)
     except Exception as e:
         print(f"Error in list_command: {e}")
+        import traceback
+        traceback.print_exc()
+
+async def setcase_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /setcase command - set accusative form for an existing keyword"""
+    try:
+        # Handle both regular messages and channel posts
+        message = update.message
+        if not message:
+            message = update.channel_post
+        
+        if not message:
+            return
+        
+        # Get the chat ID
+        chat_id = str(message.chat_id)
+        
+        # If ALLOWED_CHANNEL_ID is set, only respond to that channel
+        if ALLOWED_CHANNEL_ID is not None and chat_id != ALLOWED_CHANNEL_ID:
+            return
+        
+        # Get the word and accusative form from command arguments
+        if not context.args or len(context.args) < 2:
+            response = "Укажите слово и его форму в винительном падеже.\nПример: /setcase Япония Японию"
+            try:
+                await message.reply_text(response)
+            except:
+                await context.bot.send_message(chat_id=chat_id, text=response)
+            return
+        
+        word_to_update = context.args[0].strip()
+        accusative_form = context.args[1].strip()
+        
+        global tracked_keywords
+        
+        # Find and update the keyword
+        found = False
+        for kw in tracked_keywords:
+            if kw['word'].lower() == word_to_update.lower():
+                kw['accusative'] = accusative_form
+                found = True
+                break
+        
+        if found:
+            save_keywords(tracked_keywords)
+            response = f"✅ Обновлено: {word_to_update} → винительный падеж: {accusative_form}"
+        else:
+            response = f"Слово '{word_to_update}' не найдено. Используйте /list чтобы увидеть все слова."
+        
+        try:
+            await message.reply_text(response)
+        except:
+            await context.bot.send_message(chat_id=chat_id, text=response)
+            
+    except Exception as e:
+        print(f"Error in setcase_command: {e}")
         import traceback
         traceback.print_exc()
 
@@ -303,7 +374,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check all tracked keywords - all contribute to ONE shared counter
         global tracked_keywords
         all_matches = []
-        matched_keywords = []
+        matched_keywords = []  # Will store keyword info objects, not just strings
         
         for keyword_info in tracked_keywords:
             keyword_root = keyword_info['root']
@@ -322,8 +393,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if matches:
                 all_matches.extend(matches)
                 # Only add keyword to matched_keywords list if not already there
-                if keyword_word not in matched_keywords:
-                    matched_keywords.append(keyword_word)
+                if keyword_word not in [kw['word'] for kw in matched_keywords]:
+                    matched_keywords.append(keyword_info)
         
         if all_matches:
             # Count how many times ANY tracked word appears in this message
@@ -348,18 +419,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Create response - all tracked words share ONE counter
                 # Show which words were mentioned, but emphasize it's one shared count
                 if len(matched_keywords) == 1:
-                    keyword = matched_keywords[0]
+                    kw_info = matched_keywords[0]
+                    keyword = kw_info['word']
+                    keyword_acc = kw_info['accusative']  # Accusative form for "про"
                     messages = [
-                        f"Красавчики опять заговорили про {keyword.lower()}, это уже {total_count} раз",
+                        f"Красавчики опять заговорили про {keyword_acc.lower()}, это уже {total_count} раз",
                         f"Так, ещё одно упомянутие {keyword} ({total_count}) и мы покупаем билеты",
-                        f"{keyword} в этом чате упомянули уже {total_count} раз"
+                        f"{keyword} в этом чате упомянули уже {total_count} раз",
+                        f"Эх, сколько раз уже упомянули {keyword} ({total_count}), а то ли ещё будет!",
+                        f"Е-маё, все мечатем о {keyword_acc} ? А можно было бы уже купить билеты и рвануть. Уже {total_count} поездок, между прочим"
                     ]
                 else:
-                    keywords_str = ", ".join(matched_keywords)
+                    keywords_nom = ", ".join([kw['word'] for kw in matched_keywords])  # Nominative forms
+                    keywords_acc = ", ".join([kw['accusative'] for kw in matched_keywords])  # Accusative forms
                     messages = [
-                        f"Красавчики опять заговорили про {keywords_str.lower()}, это уже {total_count} раз (всего)",
-                        f"Так, ещё одно упомянутие ({keywords_str}) - всего {total_count}",
-                        f"В этом чате упомянули уже {total_count} раз (все отслеживаемые слова)"
+                        f"Красавчики опять заговорили про {keywords_acc.lower()}, это уже {total_count} раз (всего)",
+                        f"Так, ещё одно упомянутие ({keywords_nom}) - всего {total_count}",
+                        f"В этом чате упомянули уже {total_count} раз (все отслеживаемые слова)",
+                        f"Эх, сколько раз уже упомянули {keywords_nom} ({total_count}), а то ли ещё будет!",
+                        f"Е-маё, все мечатем о {keywords_acc} ? А можно было бы уже купить билеты и рвануть. Уже {total_count} поездок, между прочим"
                     ]
                 
                 response = random.choice(messages)
@@ -397,6 +475,7 @@ def main():
     application.add_handler(CommandHandler("add", add_command))
     application.add_handler(CommandHandler("list", list_command))
     application.add_handler(CommandHandler("setcount", setcount_command))
+    application.add_handler(CommandHandler("setcase", setcase_command))
     
     # Add message handler for all text messages (both regular messages and channel posts)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -408,7 +487,7 @@ def main():
     keywords_list = ", ".join([kw['word'] for kw in tracked_keywords])
     print(f"Bot is running! Monitoring for keywords: {keywords_list}")
     print("Add this bot to your channel and give it permission to read and send messages.")
-    print("Commands: /what, /add <word>, /list, /setcount <number>")
+    print("Commands: /what, /add <word> [accusative], /list, /setcount <number>, /setcase <word> <accusative>")
     
     # Start the bot with error handling
     try:
